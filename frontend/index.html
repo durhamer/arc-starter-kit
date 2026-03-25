@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arc Starter Kit — DApp</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0e17;
+            --surface: #111827;
+            --border: #1f2937;
+            --accent: #2563eb;
+            --accent-hover: #3b82f6;
+            --green: #10b981;
+            --text: #e5e7eb;
+            --text-muted: #9ca3af;
+            --radius: 12px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 720px; margin: 0 auto; }
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+        h1 span { color: var(--accent); }
+        .subtitle { color: var(--text-muted); font-size: 0.85rem; }
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .card h2 {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            font-size: 0.85rem;
+        }
+        .status-row + .status-row { border-top: 1px solid var(--border); }
+        .status-label { color: var(--text-muted); }
+        .status-value { font-weight: 500; }
+        .status-value.connected { color: var(--green); }
+        .status-value.disconnected { color: #ef4444; }
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.65rem 1.25rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background 0.15s;
+            width: 100%;
+        }
+        button:hover { background: var(--accent-hover); }
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+        button.secondary:hover { border-color: var(--accent); }
+        input, textarea {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.6rem 0.75rem;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            width: 100%;
+            margin-bottom: 0.75rem;
+            outline: none;
+        }
+        input:focus, textarea:focus { border-color: var(--accent); }
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .input-group input { margin-bottom: 0; }
+        .input-group button { width: auto; white-space: nowrap; }
+        .log {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            max-height: 200px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        .log .success { color: var(--green); }
+        .log .error { color: #ef4444; }
+        .log .info { color: var(--accent); }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        .badge.testnet {
+            background: rgba(37, 99, 235, 0.15);
+            color: var(--accent);
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .mt { margin-top: 0.75rem; }
+        .mb { margin-bottom: 0.75rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏗️ <span>Arc</span> Starter Kit</h1>
+            <p class="subtitle">Circle L1 Testnet DApp <span class="badge testnet">TESTNET</span></p>
+        </header>
+
+        <!-- 連接錢包 -->
+        <div class="card">
+            <h2>錢包</h2>
+            <div id="wallet-disconnected">
+                <button onclick="connectWallet()">連接 MetaMask</button>
+            </div>
+            <div id="wallet-connected" style="display:none">
+                <div class="status-row">
+                    <span class="status-label">狀態</span>
+                    <span class="status-value connected">● 已連接</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">地址</span>
+                    <span class="status-value" id="wallet-address">—</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">USDC 餘額</span>
+                    <span class="status-value" id="wallet-balance">—</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Chain ID</span>
+                    <span class="status-value" id="chain-id">—</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- HelloArchitect 互動 -->
+        <div class="card">
+            <h2>📜 HelloArchitect 合約</h2>
+            <p class="subtitle mb">讀取與更新鏈上的問候語</p>
+            <input type="text" id="contract-address" placeholder="貼上 HelloArchitect 合約地址 (0x...)" />
+            <div class="input-group">
+                <button class="secondary" onclick="readGreeting()">讀取問候語</button>
+                <button class="secondary" onclick="readOwner()">查詢 Owner</button>
+            </div>
+            <div id="greeting-display" style="display:none" class="mb">
+                <div class="status-row">
+                    <span class="status-label">目前問候語</span>
+                    <span class="status-value" id="current-greeting">—</span>
+                </div>
+            </div>
+            <div class="input-group">
+                <input type="text" id="new-greeting" placeholder="輸入新的問候語..." style="margin-bottom:0" />
+                <button onclick="setGreeting()">更新</button>
+            </div>
+        </div>
+
+        <!-- USDC 轉帳 -->
+        <div class="card">
+            <h2>💵 USDC 轉帳</h2>
+            <p class="subtitle mb">在 Arc Testnet 上發送原生 USDC</p>
+            <input type="text" id="send-to" placeholder="收款地址 (0x...)" />
+            <div class="input-group">
+                <input type="text" id="send-amount" placeholder="金額 (USDC)" style="margin-bottom:0" />
+                <button onclick="sendUSDC()">發送</button>
+            </div>
+        </div>
+
+        <!-- 日誌 -->
+        <div class="card">
+            <h2>📋 交易日誌</h2>
+            <div class="log" id="log">等待操作...<br></div>
+        </div>
+
+        <!-- 快速連結 -->
+        <div class="card">
+            <h2>🔗 快速連結</h2>
+            <div class="status-row">
+                <a href="https://faucet.circle.com" target="_blank">領取測試 USDC ↗</a>
+                <a href="https://testnet.arcscan.app" target="_blank">Arc Explorer ↗</a>
+            </div>
+            <div class="status-row">
+                <a href="https://docs.arc.network" target="_blank">官方文件 ↗</a>
+                <a href="https://discord.com/invite/buildonarc" target="_blank">Discord 社群 ↗</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ARC_TESTNET = {
+            chainId: '0x4CE4F2', // 5042002 hex
+            chainName: 'Arc Testnet',
+            nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+            rpcUrls: ['https://rpc.testnet.arc.network'],
+            blockExplorerUrls: ['https://testnet.arcscan.app'],
+        };
+
+        // Arc Testnet USDC ERC-20 (6 decimals)
+        const USDC_ADDRESS = '0x3600000000000000000000000000000000000000';
+        const ERC20_ABI = [
+            'function balanceOf(address) view returns (uint256)',
+            'function decimals() view returns (uint8)',
+            'function transfer(address to, uint256 amount) returns (bool)',
+            'function approve(address spender, uint256 amount) returns (bool)',
+        ];
+
+        const HELLO_ABI = [
+            'function getGreeting() view returns (string)',
+            'function setGreeting(string newGreeting)',
+            'function getOwner() view returns (address)',
+            'event GreetingChanged(address indexed sender, string newGreeting)',
+        ];
+
+        let provider, signer, address;
+
+        function log(msg, type = '') {
+            const el = document.getElementById('log');
+            const cls = type ? ` class="${type}"` : '';
+            el.innerHTML += `<span${cls}>[${new Date().toLocaleTimeString()}] ${msg}</span><br>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function connectWallet() {
+            try {
+                if (!window.ethereum) {
+                    alert('請安裝 MetaMask');
+                    return;
+                }
+
+                // 請求切換到 Arc Testnet
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: ARC_TESTNET.chainId }],
+                    });
+                } catch (switchErr) {
+                    if (switchErr.code === 4902) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [ARC_TESTNET],
+                        });
+                    } else {
+                        throw switchErr;
+                    }
+                }
+
+                provider = new ethers.BrowserProvider(window.ethereum);
+                signer = await provider.getSigner();
+                address = await signer.getAddress();
+
+                const network = await provider.getNetwork();
+
+                document.getElementById('wallet-disconnected').style.display = 'none';
+                document.getElementById('wallet-connected').style.display = 'block';
+                document.getElementById('wallet-address').textContent =
+                    address.slice(0, 6) + '...' + address.slice(-4);
+                document.getElementById('chain-id').textContent = network.chainId.toString();
+
+                // 讀取 USDC 餘額 (ERC-20, 6 decimals)
+                const usdc = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, provider);
+                const balance = await usdc.balanceOf(address);
+                const decimals = await usdc.decimals();
+                document.getElementById('wallet-balance').textContent =
+                    ethers.formatUnits(balance, decimals) + ' USDC';
+
+                log('錢包已連接: ' + address.slice(0, 10) + '...', 'success');
+            } catch (err) {
+                log('連接失敗: ' + err.message, 'error');
+            }
+        }
+
+        async function readGreeting() {
+            try {
+                const addr = document.getElementById('contract-address').value;
+                if (!addr) { log('請輸入合約地址', 'error'); return; }
+
+                const contract = new ethers.Contract(addr, HELLO_ABI, provider);
+                const greeting = await contract.getGreeting();
+
+                document.getElementById('greeting-display').style.display = 'block';
+                document.getElementById('current-greeting').textContent = greeting;
+                log('讀取問候語: ' + greeting, 'info');
+            } catch (err) {
+                log('讀取失敗: ' + err.message, 'error');
+            }
+        }
+
+        async function readOwner() {
+            try {
+                const addr = document.getElementById('contract-address').value;
+                if (!addr) { log('請輸入合約地址', 'error'); return; }
+
+                const contract = new ethers.Contract(addr, HELLO_ABI, provider);
+                const owner = await contract.getOwner();
+                log('合約 Owner: ' + owner, 'info');
+            } catch (err) {
+                log('讀取失敗: ' + err.message, 'error');
+            }
+        }
+
+        async function setGreeting() {
+            try {
+                const addr = document.getElementById('contract-address').value;
+                const newGreeting = document.getElementById('new-greeting').value;
+                if (!addr || !newGreeting) { log('請填入合約地址與新問候語', 'error'); return; }
+
+                const contract = new ethers.Contract(addr, HELLO_ABI, signer);
+                log('發送交易中...', 'info');
+
+                const tx = await contract.setGreeting(newGreeting);
+                log('交易已送出: ' + tx.hash, 'info');
+
+                await tx.wait();
+                log('交易確認！問候語已更新', 'success');
+
+                // 自動重新讀取
+                await readGreeting();
+            } catch (err) {
+                log('更新失敗: ' + err.message, 'error');
+            }
+        }
+
+        async function sendUSDC() {
+            try {
+                const to = document.getElementById('send-to').value;
+                const amount = document.getElementById('send-amount').value;
+                if (!to || !amount) { log('請填入收款地址與金額', 'error'); return; }
+
+                // 用原生轉帳發送 USDC（Arc 上 USDC 是原生 gas token）
+                const value = ethers.parseUnits(amount, 18); // 原生 USDC 用 18 decimals
+                log('發送 ' + amount + ' USDC 到 ' + to.slice(0, 10) + '...', 'info');
+
+                const tx = await signer.sendTransaction({ to, value });
+                log('交易已送出: ' + tx.hash, 'info');
+
+                await tx.wait();
+                log('轉帳成功！', 'success');
+            } catch (err) {
+                log('轉帳失敗: ' + err.message, 'error');
+            }
+        }
+
+        // 監聽帳號/鏈切換
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', () => location.reload());
+            window.ethereum.on('chainChanged', () => location.reload());
+        }
+    </script>
+</body>
+</html>
